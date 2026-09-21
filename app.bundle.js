@@ -940,9 +940,10 @@ EMERGENCY ALERT: ${scenario.name}. CAT-5 CONDITIONS IMMINENT. MANDATORY EVACUATI
         attributionControl: false
       }).setView([35.6762, 139.6503], 9);
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3rvv_1_29b2c998bb133ba94832902c", {
         maxZoom: 19,
-        subdomains: "abcd"
+        subdomains: "abcd",
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       }).addTo(this.map);
     }
 

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisVortex AI | Automated Weather Disaster Alert Agent & Command Center</title>
+  <meta name="description" content="Autonomous AI Weather Disaster Alert & Triage Command Center powered by Google Gemini API. Real-time Doppler radar, hazard mapping, automated EAS broadcast, and incident copilot.">
+
+  <!-- Google Fonts: Orbitron, Space Grotesk, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
+
+  <!-- Marked Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="tactical-body">
+
+  <!-- Top Tactical Command Bar -->
+  <header class="tactical-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <div class="brand-radar-icon">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <span class="ping-ring"></span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">AEGIS<span class="brand-highlight">VORTEX</span> AI</span>
+          <span class="brand-subtitle">AUTONOMOUS WEATHER DISASTER ALERT AGENT</span>
+        </div>
+      </div>
+      <div class="agent-status-indicator">
+        <span class="status-pulse-dot"></span>
+        <span class="status-label">AGENT ENGINE: <strong id="agentStatusText">MONITORING & ARMED</strong></span>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Clocks -->
+    <div class="header-center">
+      <div class="time-block">
+        <span class="time-label">EOC LOCAL TIME</span>
+        <span class="time-val" id="clockLocal">00:00:00</span>
+      </div>
+      <div class="time-divider"></div>
+      <div class="time-block">
+        <span class="time-label">COORDINATED UTC</span>
+        <span class="time-val" id="clockUTC">00:00:00Z</span>
+      </div>
+      <div class="threat-level-capsule" id="headerThreatBadge">
+        <span class="threat-rank">DEFCON 1</span>
+        <span class="threat-text" id="headerThreatText">CAT-5 CATASTROPHIC</span>
+      </div>
+    </div>
+
+    <!-- Header Operations Controls -->
+    <div class="header-right">
+      <button class="tactical-btn btn-danger" id="btnTriggerEAS" title="Broadcast EAS Siren & Audio Alarm">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>SOUND EAS ALARM</span>
+      </button>
+
+      <button class="tactical-btn btn-secondary" id="btnAudioMute" title="Toggle System Audio">
+        <i class="fa-solid fa-volume-high" id="audioMuteIcon"></i>
+      </button>
+
+      <button class="tactical-btn btn-cyan" id="btnMobileAlert" title="Simulate Mobile Emergency Broadcast">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>WEA PHONE SIM</span>
+      </button>
+
+      <button class="tactical-btn btn-secondary" id="btnOpenApiKeyModal" title="Gemini API Configuration">
+        <i class="fa-solid fa-brain"></i>
+        <span>GEMINI API</span>
+        <span class="api-status-badge" id="apiStatusBadge">MOCK MODE</span>
+      </button>
+
+      <button class="tactical-btn btn-secondary" id="btnExportDossier" title="Export Incident Dossier">
+        <i class="fa-solid fa-file-pdf"></i>
+        <span>DOSSIER</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Live Meteorological Telemetry Ticker Ribbon -->
+  <div class="telemetry-ticker-bar">
+    <div class="ticker-label"><i class="fa-solid fa-bolt"></i> LIVE TELEMETRY</div>
+    <div class="ticker-items" id="tickerItemsContainer">
+      <div class="ticker-item"><span class="t-key">EVENT:</span> <span class="t-val" id="tickName">Super Typhoon Kagami</span></div>
+      <div class="ticker-item"><span class="t-key">PRESSURE:</span> <span class="t-val alert-crit" id="tickPressure">912 hPa</span></div>
+      <div class="ticker-item"><span class="t-key">SUSTAINED WIND:</span> <span class="t-val alert-crit" id="tickWind">275 km/h</span></div>
+      <div class="ticker-item"><span class="t-key">GUSTS:</span> <span class="t-val alert-crit" id="tickGust">330 km/h</span></div>
+      <div class="ticker-item"><span class="t-key">PRECIP RATE:</span> <span class="t-val" id="tickPrecip">115 mm/hr</span></div>
+      <div class="ticker-item"><span class="t-key">STORM SURGE:</span> <span class="t-val alert-crit" id="tickSurge">+4.8 m</span></div>
+      <div class="ticker-item"><span class="t-key">DOPPLER REFLECTIVITY:</span> <span class="t-val" id="tickDbz">68 dBZ</span></div>
+      <div class="ticker-item"><span class="t-key">DANGER RADIUS:</span> <span class="t-val" id="tickEvac">180 km</span></div>
+    </div>
+  </div>
+
+  <!-- Scenario Quick-Bar -->
+  <div class="scenario-ribbon">
+    <span class="ribbon-title"><i class="fa-solid fa-sliders"></i> SIMULATE DISASTER EVENT:</span>
+    <div class="scenario-buttons">
+      <button class="scenario-btn active" data-scenario="typhoon">
+        <i class="fa-solid fa-hurricane"></i>
+        <span>Super Typhoon Kagami (Tokyo)</span>
+      </button>
+      <button class="scenario-btn" data-scenario="hurricane">
+        <i class="fa-solid fa-wind"></i>
+        <span>Hurricane Helena (Miami)</span>
+      </button>
+      <button class="scenario-btn" data-scenario="flashflood">
+        <i class="fa-solid fa-cloud-showers-heavy"></i>
+        <span>Flash Flood Surge (Manila)</span>
+      </button>
+      <button class="scenario-btn" data-scenario="tornado">
+        <i class="fa-solid fa-tornado"></i>
+        <span>EF-5 Tornado Outbreak (Oklahoma)</span>
+      </button>
+      <button class="scenario-btn" data-scenario="wildfire">
+        <i class="fa-solid fa-fire"></i>
+        <span>Megafire Complex (California)</span>
+      </button>
+      <button class="scenario-btn custom-trigger" id="btnCustomDisaster">
+        <i class="fa-solid fa-plus-circle"></i>
+        <span>Inject Custom Event</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Command Center Grid -->
+  <main class="tactical-grid">
+    
+    <!-- LEFT PANEL: Doppler Weather Radar & Eye Tracker -->
+    <section class="grid-col col-radar">
+      <div class="tactical-card radar-card">
+        <div class="card-header">
+          <div class="header-title-group">
+            <i class="fa-solid fa-crosshairs card-icon"></i>
+            <h3>DOPPLER RADAR & CORE SCANNER</h3>
+          </div>
+          <div class="radar-status-tag">60 FPS REAL-TIME</div>
+        </div>
+
+        <!-- Radar Canvas Container -->
+        <div class="radar-viewport-wrap">
+          <canvas id="radarCanvas"></canvas>
+          
+          <div class="radar-overlay-stats">
+            <div class="radar-stat-box">
+              <span class="rs-label">SCAN AZIMUTH</span>
+              <span class="rs-val" id="radarAzimuth">342° NW</span>
+            </div>
+            <div class="radar-stat-box">
+              <span class="rs-label">CORE DBZ</span>
+              <span class="rs-val" id="radarMaxDbz">68.4 dBZ</span>
+            </div>
+          </div>
+
+          <!-- Color Scale Bar -->
+          <div class="dbz-legend">
+            <span class="dbz-label">REFLECTIVITY (dBZ):</span>
+            <div class="dbz-gradient"></div>
+            <div class="dbz-ticks">
+              <span>15</span>
+              <span>30</span>
+              <span>45</span>
+              <span>60</span>
+              <span>75+</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar Interactive Controls -->
+        <div class="radar-controls-panel">
+          <div class="control-row">
+            <label><i class="fa-solid fa-layer-group"></i> Precipitation Core:</label>
+            <input type="checkbox" id="toggleReflectivity" checked>
+          </div>
+          <div class="control-row">
+            <label><i class="fa-solid fa-circle-notch"></i> Range Rings (300km):</label>
+            <input type="checkbox" id="toggleRangeRings" checked>
+          </div>
+          <div class="control-row">
+            <label><i class="fa-solid fa-arrows-spin"></i> Cyclonic Vortices:</label>
+            <input type="checkbox" id="toggleWindVectors" checked>
+          </div>
+        </div>
+
+        <!-- Eye Telemetry Mini-Card -->
+        <div class="storm-eye-card">
+          <div class="eye-header">
+            <span class="eye-badge"><i class="fa-solid fa-bullseye"></i> VORTEX ANATOMY</span>
+            <span class="eye-movement" id="cardMovement">NW at 22 km/h</span>
+          </div>
+          <div class="eye-grid">
+            <div class="eye-metric">
+              <span class="em-lbl">Satellite IR Temp</span>
+              <span class="em-val" id="cardSatTemp">-82°C (Overshooting Top)</span>
+            </div>
+            <div class="eye-metric">
+              <span class="em-lbl">Eye Wall Radius</span>
+              <span class="em-val" id="cardEyeRadius">32 km (Symmetric)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTER PANEL: Interactive Hazard Map & Sensor Telemetry -->
+    <section class="grid-col col-map">
+      <div class="tactical-card map-card">
+        <div class="card-header">
+          <div class="header-title-group">
+            <i class="fa-solid fa-map-location-dot card-icon"></i>
+            <h3>TACTICAL DISASTER CARTOGRAPHY</h3>
+          </div>
+          <div class="map-badges">
+            <span class="map-badge badge-red"><i class="fa-solid fa-circle-exclamation"></i> MANDATORY EVAC</span>
+            <span class="map-badge badge-green"><i class="fa-solid fa-shield-halved"></i> SAFE SHELTERS</span>
+          </div>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="disasterMap" class="map-viewport"></div>
+
+        <!-- Map Footer Telemetry Sensor Matrix -->
+        <div class="sensor-matrix">
+          <div class="sensor-cell">
+            <div class="sensor-icon"><i class="fa-solid fa-gauge-high"></i></div>
+            <div class="sensor-info">
+              <span class="sensor-title">BAROMETRIC TENDENCY</span>
+              <span class="sensor-data alert-crit" id="sensorPressure">912.0 hPa</span>
+              <span class="sensor-trend">Rapid Fall (-8.4 hPa/3h)</span>
+            </div>
+          </div>
+
+          <div class="sensor-cell">
+            <div class="sensor-icon"><i class="fa-solid fa-water"></i></div>
+            <div class="sensor-info">
+              <span class="sensor-title">COASTAL SURGE TIDE</span>
+              <span class="sensor-data alert-crit" id="sensorSurge">+4.80 m</span>
+              <span class="sensor-trend">Peak at Astronomical High</span>
+            </div>
+          </div>
+
+          <div class="sensor-cell">
+            <div class="sensor-icon"><i class="fa-solid fa-wind"></i></div>
+            <div class="sensor-info">
+              <span class="sensor-title">VELOCITY SENSOR</span>
+              <span class="sensor-data alert-crit" id="sensorWind">275 km/h</span>
+              <span class="sensor-trend">Max Gusts: 330 km/h</span>
+            </div>
+          </div>
+
+          <div class="sensor-cell">
+            <div class="sensor-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="sensor-info">
+              <span class="sensor-title">EVACUATION RADIUS</span>
+              <span class="sensor-data alert-warn" id="sensorRadius">180 km</span>
+              <span class="sensor-trend">Zone 1 & 2 Enforced</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Gemini AI Autonomous Agent Intelligence & Operations -->
+    <section class="grid-col col-agent">
+      <div class="tactical-card agent-card">
+        <div class="card-header">
+          <div class="header-title-group">
+            <i class="fa-solid fa-microchip card-icon ai-glow-icon"></i>
+            <div>
+              <h3>GEMINI AI DISASTER AGENT</h3>
+              <div class="agent-sub-status">
+                <span id="geminiModelLabel">MODEL: gemini-1.5-flash</span> • 
+                <span class="source-pill" id="agentSourcePill">READY</span>
+              </div>
+            </div>
+          </div>
+          <button class="tactical-btn btn-sm btn-cyan" id="btnReanalyze" title="Rerun Autonomous AI Threat Assessment">
+            <i class="fa-solid fa-arrows-rotate" id="reanalyzeSpinner"></i>
+            <span>RUN TRIAGE</span>
+          </button>
+        </div>
+
+        <!-- Agent Tabs Navigation -->
+        <div class="agent-tabs-nav">
+          <button class="agent-tab active" data-tab="triage">
+            <i class="fa-solid fa-shield-virus"></i> Threat Triage
+          </button>
+          <button class="agent-tab" data-tab="broadcast">
+            <i class="fa-solid fa-bullhorn"></i> EAS Broadcast
+          </button>
+          <button class="agent-tab" data-tab="shelters">
+            <i class="fa-solid fa-person-shelter"></i> Evac & Safehouses
+          </button>
+          <button class="agent-tab" data-tab="copilot">
+            <i class="fa-solid fa-comments"></i> Incident Copilot
+          </button>
+        </div>
+
+        <!-- Tab 1: AI Threat Triage -->
+        <div class="tab-pane active" id="tabPaneTriage">
+          <div class="ai-response-container" id="triageOutput">
+            <div class="loading-state">
+              <i class="fa-solid fa-circle-notch fa-spin"></i>
+              <p>Autonomous Agent synthesizing atmospheric telemetry...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Multi-Lingual EAS Broadcast -->
+        <div class="tab-pane" id="tabPaneBroadcast">
+          <div class="broadcast-toolbar">
+            <div class="lang-selector-group">
+              <label for="selectBroadcastLang"><i class="fa-solid fa-language"></i> Language:</label>
+              <select id="selectBroadcastLang" class="tactical-select">
+                <option value="English">English (United States / Global)</option>
+                <option value="Japanese">日本語 (Japanese)</option>
+                <option value="Spanish">Español (Spanish)</option>
+                <option value="Tagalog">Filipino / Tagalog</option>
+                <option value="Hindi">हिन्दी (Hindi)</option>
+                <option value="French">Français (French)</option>
+              </select>
+            </div>
+
+            <button class="tactical-btn btn-sm btn-danger" id="btnSpeakBroadcast">
+              <i class="fa-solid fa-volume-high"></i>
+              <span>VOICE BROADCAST</span>
+            </button>
+          </div>
+
+          <div class="ai-response-container" id="broadcastOutput">
+            <div class="loading-state">
+              <i class="fa-solid fa-circle-notch fa-spin"></i>
+              <p>Generating localized EAS emergency scripts...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Evacuation & Safehouses -->
+        <div class="tab-pane" id="tabPaneShelters">
+          <div class="shelter-tab-content">
+            <h4 class="section-sub"><i class="fa-solid fa-signs-post"></i> VERIFIED EVACUATION CORRIDORS</h4>
+            <div class="routes-list" id="routesListContainer">
+              <!-- Dynamically populated -->
+            </div>
+
+            <h4 class="section-sub mt-3"><i class="fa-solid fa-building-shield"></i> REINFORCED SAFE SANCTUARIES</h4>
+            <div class="shelters-list" id="sheltersListContainer">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Incident Copilot Chat -->
+        <div class="tab-pane" id="tabPaneCopilot">
+          <div class="copilot-chat-wrap">
+            <div class="copilot-messages" id="copilotMessages">
+              <div class="chat-msg msg-agent">
+                <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+                <div class="msg-bubble">
+                  <strong>AegisVortex Incident Copilot Online.</strong>
+                  <p>I have ingested all live telemetry for this active emergency. Ask me about evacuation safety, flood depth thresholds, shelter availability, or high-rise survival protocols.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Suggestion Chips -->
+            <div class="copilot-quick-chips">
+              <button class="chip-btn" data-query="Which shelters are currently open and have capacity?">Open Shelters?</button>
+              <button class="chip-btn" data-query="Are the highway bridges and causeways safe to drive?">Bridge Passability?</button>
+              <button class="chip-btn" data-query="What survival steps should high-rise residents take immediately?">High-Rise Survival?</button>
+              <button class="chip-btn" data-query="What is the critical time window before peak storm surge?">Surge Window?</button>
+            </div>
+
+            <!-- Chat Input Box -->
+            <form class="copilot-input-form" id="copilotForm">
+              <input type="text" id="copilotInput" placeholder="Ask AI Incident Commander regarding disaster protocols..." autocomplete="off">
+              <button type="submit" class="tactical-btn btn-cyan">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: Gemini API Key & Model Configuration Drawer -->
+  <div class="tactical-modal" id="modalApiKey">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-key"></i>
+          <h3>GOOGLE GEMINI API CONFIGURATION</h3>
+        </div>
+        <button class="modal-close" id="btnCloseApiKeyModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Connect your Google Gemini API key to enable live, unconstrained AI meteorological triage, multi-language alerts, and intelligent incident copilot reasoning.
+        </p>
+
+        <div class="form-group">
+          <label for="inputGeminiApiKey">Gemini API Key:</label>
+          <div class="input-with-toggle">
+            <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy...">
+            <button type="button" id="btnToggleKeyVisibility" class="btn-toggle-vis"><i class="fa-solid fa-eye"></i></button>
+          </div>
+          <small class="helper-text">Your API key is securely stored in your local browser <code>localStorage</code> and never transmitted to any third-party server.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="selectGeminiModel">Gemini Model:</label>
+          <select id="selectGeminiModel" class="tactical-select">
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Ultra Fast & Recommended)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Next-Gen High Speed)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning)</option>
+          </select>
+        </div>
+
+        <div class="modal-alert-box info-box">
+          <i class="fa-solid fa-info-circle"></i>
+          <div>
+            <strong>No API Key Right Now?</strong>
+            <p>AegisVortex includes a built-in <strong>High-Fidelity Autonomous Agent Engine</strong> that provides instant, verified disaster reasoning even without an API key.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="tactical-btn btn-secondary" id="btnClearApiKey">Clear Key</button>
+        <button class="tactical-btn btn-cyan" id="btnSaveApiKey">Save & Test Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Mobile Emergency Lockscreen Simulation (WEA Alert) -->
+  <div class="tactical-modal" id="modalMobileAlert">
+    <div class="modal-backdrop"></div>
+    <div class="modal-phone-shell">
+      <div class="phone-speaker"></div>
+      <div class="phone-screen">
+        <div class="phone-status-bar">
+          <span>09:41</span>
+          <div class="phone-status-icons">
+            <i class="fa-solid fa-signal"></i>
+            <i class="fa-solid fa-wifi"></i>
+            <i class="fa-solid fa-battery-full"></i>
+          </div>
+        </div>
+
+        <div class="phone-lockscreen-content">
+          <div class="phone-clock">
+            <h1 id="phoneClockTime">09:41</h1>
+            <p id="phoneClockDate">Monday, September 21</p>
+          </div>
+
+          <!-- Emergency Alert Pop-up Notification -->
+          <div class="phone-eas-card vibrate-anim">
+            <div class="eas-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>EMERGENCY ALERT SYSTEM (WEA)</span>
+            </div>
+            <div class="eas-title" id="phoneEasTitle">EXTREME WEATHER WARNING: LEVEL 5</div>
+            <p class="eas-body" id="phoneEasBody">
+              MANDATORY EVACUATION: Super Typhoon Kagami eyewall landfall imminent in Tokyo Bay area. Destructive winds >270 km/h and 4.8m coastal surge. Seek reinforced shelter immediately.
+            </p>
+            <div class="eas-footer">
+              <span>National Disaster Operations</span> • <span>NOW</span>
+            </div>
+          </div>
+
+          <div class="phone-actions">
+            <button class="phone-btn btn-siren-test" id="btnPhoneSoundAlarm">
+              <i class="fa-solid fa-bullhorn"></i> PLAY PHONE ALARM TONES
+            </button>
+            <button class="phone-btn btn-dismiss" id="btnCloseMobileAlert">
+              DISMISS ALERT
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Custom Disaster Injector -->
+  <div class="tactical-modal" id="modalCustomDisaster">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-sliders"></i>
+          <h3>INJECT CUSTOM WEATHER DISASTER</h3>
+        </div>
+        <button class="modal-close" id="btnCloseCustomModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Disaster Name:</label>
+            <input type="text" id="customName" value="Severe Tropical Cyclone Zephyr">
+          </div>
+          <div class="form-group">
+            <label>Disaster Type:</label>
+            <select id="customType" class="tactical-select">
+              <option value="tropical_cyclone">Super Typhoon / Hurricane</option>
+              <option value="tornado">Tornado Outbreak</option>
+              <option value="flood">Catastrophic Flash Flood</option>
+              <option value="wildfire">Megafire Complex</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Location / City:</label>
+            <input type="text" id="customLocation" value="Sydney Harbor & Coastal NSW, Australia">
+          </div>
+          <div class="form-group">
+            <label>Threat Level:</label>
+            <select id="customThreatLevel" class="tactical-select">
+              <option value="5">Level 5 (Catastrophic)</option>
+              <option value="4">Level 4 (Critical Emergency)</option>
+              <option value="3">Level 3 (Severe Watch)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Latitude:</label>
+            <input type="number" step="0.0001" id="customLat" value="-33.8688">
+          </div>
+          <div class="form-group">
+            <label>Longitude:</label>
+            <input type="number" step="0.0001" id="customLng" value="151.2093">
+          </div>
+          <div class="form-group">
+            <label>Sustained Wind (km/h):</label>
+            <input type="number" id="customWind" value="230">
+          </div>
+          <div class="form-group">
+            <label>Central Pressure (hPa):</label>
+            <input type="number" id="customPressure" value="935">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="tactical-btn btn-secondary" id="btnCancelCustom">Cancel</button>
+        <button class="tactical-btn btn-danger" id="btnDeployCustom">
+          <i class="fa-solid fa-radiation"></i> INJECT & TRIGGER ALERT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Incident Dossier Export / Print Preview -->
+  <div class="tactical-modal" id="modalDossier">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-file-shield"></i>
+          <h3>INCIDENT SITUATION REPORT (SITREP)</h3>
+        </div>
+        <button class="modal-close" id="btnCloseDossierModal">&times;</button>
+      </div>
+      <div class="modal-body" id="dossierPrintArea">
+        <div class="dossier-paper">
+          <div class="dossier-header-block">
+            <div class="dossier-emblem">AEGIS-SITREP-DOC</div>
+            <h2>EMERGENCY DISASTER SITUATION REPORT</h2>
+            <div class="dossier-meta" id="dossierMeta">SECURITY CLASSIFICATION: OFFICIAL PUBLIC SAFETY DIRECTIVE</div>
+          </div>
+
+          <div class="dossier-section">
+            <h4>1. ACTIVE INCIDENT TELEMETRY</h4>
+            <div class="dossier-table" id="dossierTelemetryTable"></div>
+          </div>
+
+          <div class="dossier-section">
+            <h4>2. GEMINI AI AGENT TRIAGE & CASUALTY ESTIMATION</h4>
+            <div class="dossier-content-box" id="dossierTriageContent"></div>
+          </div>
+
+          <div class="dossier-section">
+            <h4>3. EMERGENCY ALERT BROADCAST NOTICE</h4>
+            <div class="dossier-content-box" id="dossierBroadcastContent"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="tactical-btn btn-secondary" id="btnPrintDossier">
+          <i class="fa-solid fa-print"></i> Print / Save PDF
+        </button>
+        <button class="tactical-btn btn-cyan" id="btnCopyDossier">
+          <i class="fa-solid fa-copy"></i> Copy Text
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS Library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Application Bundle -->
+  <script src="app.bundle.js"></script>
+</body>
+</html>
